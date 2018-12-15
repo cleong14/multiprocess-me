@@ -12,7 +12,6 @@ menu_options = [
 ]
 
 domain_list = []
-processes = []
 scraped_domains = []
 
 NUM_WORKERS = 4
@@ -21,29 +20,25 @@ done_queue = Queue() # Messages from child process for parent
 process_queue = Queue() # Domains to process
 
 def scraper(p_queue, d_queue):
-  # print('SCRAPER')
-  # print('STARTING PROCESS QUEUE', p_queue)
-  # print('STARTING DONE QUEUE', d_queue)
-
+  print('SCRAPER RAN')
   done_queue.put('{} starting'.format(current_process().name))
 
   for domain in iter(process_queue.get, 'STOP'):
     print('DOMAIN BRUH!', domain)
 
     result = requests.get(domain['domain'])
-    # result_text = result.text
-    
-    print('TEXT', result.text)
-    print("{}: Domain {} retrieved with {} bytes".format(current_process().name, domain, len(result.text)))
+    print('DOMAIN RESULT', domain)
+    print('TEXT RESULT', result.text)
 
-    done_queue.put('{}: Domain {} retrieved with {} bytes'.format(current_process().name, domain, len(result.text)))
+  #   print('TEXT', result.text)
+  #   print("{}: Domain {} retrieved with {} bytes".format(current_process().name, domain, len(result.text)))
 
-# starts processes in the beginning then listens for call to action
+  #   done_queue.put('{}: Domain {} retrieved with {} bytes'.format(current_process().name, domain, len(result.text)))
+  return get_user_selection('Please select a process from the menu\n')
+
 for i in range(NUM_WORKERS):
   p = Process(target=scraper, args=(process_queue, done_queue))
-  # print('P', p)
   p.start()
-  # print('P AFTER START', p)
 
 def get_user_selection(prompt):
   options_str = '\n'
@@ -57,7 +52,7 @@ def get_user_selection(prompt):
       value = int(input(prompt))
 
       if value == 1:
-        print('\nInput domain info below\n')
+        print('\nInput domain info below')
 
         domain_vals = {
           'domain': input('Domain Name: '),
@@ -65,16 +60,18 @@ def get_user_selection(prompt):
           'port': input('Port Number: ')
         }
 
-        domain_list.append(domain_vals)
-        process_queue.put(domain_vals)
-        
+        domain_list.append(domain_vals)        
         print(domain_list)
         
         get_user_selection('Please select a process from the menu\n')
 
       if value == 2:
         print('\nStarting queue...\n')
-
+        
+        for domain in domain_list:
+          print('2 - DOMAIN', domain)
+          process_queue.put(domain)
+          
         scraper(process_queue, done_queue)
 
         return get_user_selection('Please select a process from the menu\n')
