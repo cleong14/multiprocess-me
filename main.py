@@ -1,46 +1,38 @@
 #!/usr/bin/env python
-import os
+import time
 import requests
 from multiprocessing import Process, Queue, current_process
 
 menu_options = [
-  '1. Add a domain name\n'
-  '2. Start processing queue\n',
-  '3. Stop processing queue\n',
-  '4. Display logs\n',
-  '5. Exit\n'
+    '1. Add a domain name\n'
+    '2. Start processing queue\n',
+    '3. Stop processing queue\n',
+    '4. Display logs\n',
+    '5. Exit'
 ]
 
-domain_list = []
-scraped_domains = []
+domain_list = [
+    'https://devleague.com',
+    'https://sudokrew.com',
+    'https://google.com',
+    'https://facebook.com'
+]
+scraped_domain_list = []
 
 NUM_WORKERS = 4
 
-done_queue = Queue() # Messages from child process for parent
-process_queue = Queue() # Domains to process
+done_queue = Queue()  # This is messages from the child processes for parent
+process_queue = Queue()  # This is the domains to process
 
-def scraper(p_queue, d_queue):
-  print('SCRAPER RAN')
-  done_queue.put('{} starting'.format(current_process().name))
 
+def scraper(process_queue, done_queue):
+  done_queue.put("{} starting".format(current_process().name))
   for domain in iter(process_queue.get, 'STOP'):
-    print('DOMAIN BRUH!', domain)
+    print('\nScraping Domain:', domain)
+    result = requests.get(domain)
+    done_queue.put("{}: Domain {} retrieved with {} bytes".format(current_process().name, domain, len(result.text)))
 
-    result = requests.get(domain['domain'])
-    print('DOMAIN RESULT', domain)
-    print('TEXT RESULT', result.text)
-
-  #   print('TEXT', result.text)
-  #   print("{}: Domain {} retrieved with {} bytes".format(current_process().name, domain, len(result.text)))
-
-  #   done_queue.put('{}: Domain {} retrieved with {} bytes'.format(current_process().name, domain, len(result.text)))
-  return get_user_selection('Please select a process from the menu\n')
-
-for i in range(NUM_WORKERS):
-  p = Process(target=scraper, args=(process_queue, done_queue))
-  p.start()
-
-def get_user_selection(prompt):
+def main(prompt):
   options_str = '\n'
 
   for options in menu_options:
@@ -52,29 +44,29 @@ def get_user_selection(prompt):
       value = int(input(prompt))
 
       if value == 1:
-        print('\nInput domain info below')
+        print('\nInput domain info below:\n')
 
-        domain_vals = {
-          'domain': input('Domain Name: '),
-          'ip_address': input('IP Address: '),
-          'port': input('Port Number: ')
-        }
+        domain_str = 'https://' + input('Domain Name: ')
 
-        domain_list.append(domain_vals)        
-        print(domain_list)
-        
-        get_user_selection('Please select a process from the menu\n')
+        domain_list.append(domain_str)
+        print('Domains: ', domain_list)
+
+        main('\nPlease select a process from the menu\n')
 
       if value == 2:
         print('\nStarting queue...\n')
-        
-        for domain in domain_list:
-          print('2 - DOMAIN', domain)
-          process_queue.put(domain)
-          
-        scraper(process_queue, done_queue)
 
-        return get_user_selection('Please select a process from the menu\n')
+        for domain in domain_list:
+          process_queue.put(domain)
+          print(domain, 'has been queued...')
+
+        for i in range(NUM_WORKERS):
+          Process(target=scraper, args=(process_queue, done_queue)).start()
+          
+        for message in iter(done_queue.get, 'STOP'):
+          print(message)
+          message = 'STOP'
+          done_queue.put(message)
 
       if value == 3:
         print('Stopping queue...')
@@ -93,63 +85,15 @@ def get_user_selection(prompt):
       print('Please enter an integar')
       continue
 
-    if value not in (0, 6):
-      print('Please select an option from the menu')
-      continue
-    else:
-      break
+    # if value not in (0, 6):
+    #   print('Please select an option from the menu')
+    #   continue
+    # else:
+    #   break
 
   print('VALUE', value)
-  return value
+  pass
 
-# def write_logs(log_input):
-#   while True:
-#     try:
-#       value = dict(log_input)
 
-#       if type(value) is dict:
-#         full_address = value['ip_address'] + ':' + value['port']
-#         domain_name = value['domain']
-#         ip_address = value['ip_address']
-#         port_num = value['port']
-#         log_text = '\n====================\n\n' + 'Domain Name: ' + domain_name + '\n' + 'IP Address: ' + ip_address + '\n' + 'Port: ' + port_num + '\n'
-
-#         # Write to masterlogs.txt
-#         master_text = '\nWriting to Master Logs...\n' + log_text
-#         master_fh = open('./masterlogs.txt', 'a+')
-#         master_fh.writelines(master_text)
-#         master_fh.close()
-
-#         master_fh_reopen = open('./masterlogs.txt', 'r')
-#         master_contents = master_fh_reopen.read()
-#         print(master_contents)
-
-#         # Write to domains.txt
-#         domains_text = '\nWriting to Domains Logs...\n' + log_text
-#         domains_fh = open('./domains.txt', 'a+')
-#         domains_fh.writelines(domains_text)
-#         domains_fh.close()
-
-#         domains_fh_reopen = open('./domains.txt', 'r')
-#         domains_contents = domains_fh_reopen.read()
-#         print(domains_contents)
-#         break
-      
-#     except Exception as e:
-#       print('Value Error!', e)
-#       break
-
-#   domain_dict = {
-#     'domain': domain_name,
-#     'ip': ip_address,
-#     'port': port_num,
-#     'ip_port': full_address
-#   }
-
-#   domain_list.append(domain_dict)
-#   print('DOMAIN OPTIONS', domain_list)
-
-#   return get_user_selection('Please select a process from the menu\n')
-
-if __name__ == '__main__':
-  get_user_selection('Please select a process from the menu\n')
+if __name__ == "__main__":
+  main('\nPlease select a process from the menu\n')
